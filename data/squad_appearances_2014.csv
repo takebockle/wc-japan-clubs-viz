@@ -1,6 +1,6 @@
 tournament_year,player_name,player_name_en,position,season,club,league,country,club_lat,club_lng,appearances
 2014,川島永嗣,Eiji Kawashima,GK,2011,Lierse S.K.,Belgian Pro League,Belgium,51.1442,4.5736,30
-2014,川島永嗣,Eiji Kawashima,GK,2012,Lierse S.K.,Belgian Pro League,Belgium,51.1442,4.5736,36
+2014,川島永嗣,Eiji Kawashima,GK,2012,Lierse S.K.,Belgian Pro League,Belgium,51.1442,4.5736,42
 2014,川島永嗣,Eiji Kawashima,GK,2013,Standard Liège,Belgian Pro League,Belgium,50.6100,5.5433,40
 2014,川島永嗣,Eiji Kawashima,GK,2014,Standard Liège,Belgian Pro League,Belgium,50.6100,5.5433,47
 2014,西川周作,Shūsaku Nishikawa,GK,2011,Sanfrecce Hiroshima,J1 League,Japan,34.4408,132.3943,35
@@ -20,7 +20,7 @@ tournament_year,player_name,player_name_en,position,season,club,league,country,c
 2014,酒井高徳,Gōtoku Sakai,DF,2013,VfB Stuttgart,Bundesliga,Germany,48.7922,9.2319,41
 2014,酒井高徳,Gōtoku Sakai,DF,2014,VfB Stuttgart,Bundesliga,Germany,48.7922,9.2319,32
 2014,長友佑都,Yuto Nagatomo,DF,2011,A.C. Cesena,Serie A,Italy,44.1406,12.2619,16
-2014,長友佑都,Yuto Nagatomo,DF,2011,Inter Milan,Serie A,Italy,45.4781,9.1239,16
+2014,長友佑都,Yuto Nagatomo,DF,2011,Inter Milan,Serie A,Italy,45.4781,9.1239,19
 2014,長友佑都,Yuto Nagatomo,DF,2012,Inter Milan,Serie A,Italy,45.4781,9.1239,43
 2014,長友佑都,Yuto Nagatomo,DF,2013,Inter Milan,Serie A,Italy,45.4781,9.1239,35
 2014,長友佑都,Yuto Nagatomo,DF,2014,Inter Milan,Serie A,Italy,45.4781,9.1239,36
@@ -65,7 +65,7 @@ tournament_year,player_name,player_name_en,position,season,club,league,country,c
 2014,香川真司,Shinji Kagawa,MF,2011,Borussia Dortmund,Bundesliga,Germany,51.4925,7.4517,28
 2014,香川真司,Shinji Kagawa,MF,2012,Borussia Dortmund,Bundesliga,Germany,51.4925,7.4517,43
 2014,香川真司,Shinji Kagawa,MF,2013,Manchester United,Premier League,England,53.4631,-2.2914,26
-2014,香川真司,Shinji Kagawa,MF,2014,Manchester United,Premier League,England,53.4631,-2.2914,28
+2014,香川真司,Shinji Kagawa,MF,2014,Manchester United,Premier League,England,53.4631,-2.2914,30
 2014,青山敏弘,Toshihiro Aoyama,MF,2011,Sanfrecce Hiroshima,J1 League,Japan,34.4408,132.3943,30
 2014,青山敏弘,Toshihiro Aoyama,MF,2012,Sanfrecce Hiroshima,J1 League,Japan,34.4408,132.3943,38
 2014,青山敏弘,Toshihiro Aoyama,MF,2013,Sanfrecce Hiroshima,J1 League,Japan,34.4408,132.3943,46
@@ -74,7 +74,7 @@ tournament_year,player_name,player_name_en,position,season,club,league,country,c
 2014,山口蛍,Hotaru Yamaguchi,MF,2012,Cerezo Osaka,J1 League,Japan,34.6141,135.5185,40
 2014,山口蛍,Hotaru Yamaguchi,MF,2013,Cerezo Osaka,J1 League,Japan,34.6141,135.5185,42
 2014,山口蛍,Hotaru Yamaguchi,MF,2014,Cerezo Osaka,J1 League,Japan,34.6141,135.5185,28
-2014,岡崎慎司,Shinji Okazaki,FW,2011,VfB Stuttgart,Bundesliga,Germany,48.7922,9.2319,14
+2014,岡崎慎司,Shinji Okazaki,FW,2011,VfB Stuttgart,Bundesliga,Germany,48.7922,9.2319,16
 2014,岡崎慎司,Shinji Okazaki,FW,2012,VfB Stuttgart,Bundesliga,Germany,48.7922,9.2319,29
 2014,岡崎慎司,Shinji Okazaki,FW,2013,VfB Stuttgart,Bundesliga,Germany,48.7922,9.2319,42
 2014,岡崎慎司,Shinji Okazaki,FW,2014,1. FSV Mainz 05,Bundesliga,Germany,49.9842,8.2242,35
