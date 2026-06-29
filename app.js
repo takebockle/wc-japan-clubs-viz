@@ -50,6 +50,11 @@ let state = {
   playerColors: {},
 };
 
+// ===== Mobile detection =====
+function isMobile() {
+  return window.matchMedia('(max-width: 767px)').matches;
+}
+
 async function loadData() {
   const files = YEARS.map(y => `data/squad_appearances_${y}.csv`);
   const datasets = await Promise.all(files.map(f => d3.csv(f, d => ({
@@ -169,13 +174,15 @@ function aggregateByCountry(yearData) {
 }
 
 function initMap() {
+  const mobile = isMobile();
   map = L.map('map', {
-    center: [40, 70],
-    zoom: 2,
+    center: mobile ? [35, 100] : [40, 70],
+    zoom: mobile ? 2 : 2,
     minZoom: 2,
     maxZoom: 10,
-    zoomControl: true,
+    zoomControl: !mobile,
     worldCopyJump: true,
+    tap: true,
   });
 
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -184,13 +191,28 @@ function initMap() {
     maxZoom: 20,
   }).addTo(map);
 
+  // Add zoom control to top-left on mobile
+  if (mobile) {
+    L.control.zoom({ position: 'topright' }).addTo(map);
+  }
+
   markerLayer = L.layerGroup().addTo(map);
   pathLayer = L.layerGroup().addTo(map);
   map.on('zoomend', () => renderBars());
+
+  // Tap on map to dismiss tooltip on mobile
+  if (mobile) {
+    map.on('click', () => {
+      hideTooltip();
+    });
+  }
 }
 
 function createBarIcon(clubData, colors, maxTotal) {
-  const scale = MAX_BAR_HEIGHT / Math.max(maxTotal, 1);
+  const mobile = isMobile();
+  const barWidth = mobile ? 7 : BAR_WIDTH;
+  const maxHeight = mobile ? 100 : MAX_BAR_HEIGHT;
+  const scale = maxHeight / Math.max(maxTotal, 1);
   const segments = clubData.players.map(p => ({
     ...p,
     height: Math.max(p.appearances * scale, MIN_SEGMENT_HEIGHT),
@@ -198,15 +220,15 @@ function createBarIcon(clubData, colors, maxTotal) {
   }));
   const totalHeight = segments.reduce((s, seg) => s + seg.height + 1, 0);
   const svgHeight = totalHeight + 8;
-  const svgWidth = BAR_WIDTH + 4;
+  const svgWidth = barWidth + 4;
 
   let y = svgHeight - 6;
-  let rectsHtml = `<circle class="club-dot" cx="${svgWidth / 2}" cy="${svgHeight - 3}" r="3"/>`;
+  let rectsHtml = `<circle class="club-dot" cx="${svgWidth / 2}" cy="${svgHeight - 3}" r="${mobile ? 4 : 3}"/>`;
 
   for (const seg of segments) {
     y -= seg.height;
     const dimClass = state.selectedPlayer && state.selectedPlayer !== seg.name ? ' dimmed' : '';
-    rectsHtml += `<rect class="bar-segment${dimClass}" data-player="${seg.name}" x="2" y="${y}" width="${BAR_WIDTH}" height="${seg.height}" rx="1" fill="${seg.color}"/>`;
+    rectsHtml += `<rect class="bar-segment${dimClass}" data-player="${seg.name}" x="2" y="${y}" width="${barWidth}" height="${seg.height}" rx="1" fill="${seg.color}"/>`;
     y -= 1;
   }
 
@@ -236,14 +258,23 @@ function renderBars() {
     ? aggregateByCountry(yearData)
     : aggregateClubs(yearData);
   const maxTotal = d3.max(clubs, c => c.total) || 1;
+  const mobile = isMobile();
 
   for (const club of clubs) {
     const icon = createBarIcon(club, state.playerColors, maxTotal);
     const marker = L.marker([club.lat, club.lng], { icon, interactive: true });
 
-    marker.on('mouseover', (e) => showTooltip(e, club, zoom <= ZOOM_THRESHOLD));
-    marker.on('mouseout', hideTooltip);
-    marker.on('mousemove', moveTooltip);
+    if (mobile) {
+      // On mobile, use click/tap for tooltip
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        showTooltip(e, club, zoom <= ZOOM_THRESHOLD);
+      });
+    } else {
+      marker.on('mouseover', (e) => showTooltip(e, club, zoom <= ZOOM_THRESHOLD));
+      marker.on('mouseout', hideTooltip);
+      marker.on('mousemove', moveTooltip);
+    }
 
     marker.addTo(markerLayer);
   }
@@ -280,11 +311,17 @@ function showTooltip(e, club, isCountryMode) {
     <div class="tooltip-total">Total: ${club.total} appearances</div>
   `;
   tooltip.classList.add('visible');
-  positionTooltip(e.originalEvent);
+
+  if (!isMobile()) {
+    positionTooltip(e.originalEvent);
+  }
+  // On mobile, CSS positions tooltip at bottom-center, no JS positioning needed
 }
 
 function moveTooltip(e) {
-  positionTooltip(e.originalEvent);
+  if (!isMobile()) {
+    positionTooltip(e.originalEvent);
+  }
 }
 
 function positionTooltip(event) {
@@ -544,8 +581,89 @@ function initViewButtons() {
       document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       map.flyTo(view.center, view.zoom, { duration: 1 });
+      // On mobile, collapse the sheet when switching views
+      if (isMobile()) {
+        setSheetState('collapsed');
+      }
     });
   });
+}
+
+// ===== Bottom Sheet Logic (Mobile) =====
+function setSheetState(state) {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.setAttribute('data-sheet', state);
+}
+
+function initBottomSheet() {
+  const sidebar = document.getElementById('sidebar');
+  const handle = document.getElementById('sheet-handle');
+
+  if (!isMobile()) return;
+
+  // Start collapsed
+  setSheetState('collapsed');
+
+  let startY = 0;
+  let startTranslateY = 0;
+  let isDragging = false;
+
+  function getTranslateY(el) {
+    const style = window.getComputedStyle(el);
+    const matrix = new DOMMatrix(style.transform);
+    return matrix.m42;
+  }
+
+  function onStart(e) {
+    const touch = e.touches ? e.touches[0] : e;
+    startY = touch.clientY;
+    startTranslateY = getTranslateY(sidebar);
+    isDragging = true;
+    sidebar.style.transition = 'none';
+  }
+
+  function onMove(e) {
+    if (!isDragging) return;
+    const touch = e.touches ? e.touches[0] : e;
+    const dy = touch.clientY - startY;
+    const newY = Math.max(0, startTranslateY + dy);
+    sidebar.style.transform = `translateY(${newY}px)`;
+  }
+
+  function onEnd(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    sidebar.style.transition = '';
+
+    const currentY = getTranslateY(sidebar);
+    const sidebarHeight = sidebar.offsetHeight;
+    const collapsedY = sidebarHeight - 140;
+
+    // If dragged past midpoint, collapse; otherwise expand
+    if (currentY > collapsedY * 0.5) {
+      setSheetState('collapsed');
+    } else {
+      setSheetState('expanded');
+    }
+    sidebar.style.transform = '';
+  }
+
+  handle.addEventListener('touchstart', onStart, { passive: true });
+  handle.addEventListener('touchmove', onMove, { passive: true });
+  handle.addEventListener('touchend', onEnd);
+
+  // Also allow tapping handle to toggle
+  handle.addEventListener('click', () => {
+    const current = sidebar.getAttribute('data-sheet');
+    setSheetState(current === 'collapsed' ? 'expanded' : 'collapsed');
+  });
+}
+
+// ===== Handle resize =====
+function handleResize() {
+  if (map) {
+    map.invalidateSize();
+  }
 }
 
 async function init() {
@@ -553,8 +671,11 @@ async function init() {
   await loadData();
   initYearControl();
   initViewButtons();
+  initBottomSheet();
   renderBars();
   renderSidebar();
+
+  window.addEventListener('resize', handleResize);
 }
 
 init();
