@@ -613,9 +613,24 @@ function updateYear() {
 
 const VIEWS = {
   world: { center: [35, 70], zoom: 2, mobileBounds: [[15, -14], [58, 152]] },
-  japan: { center: [36.5, 137], zoom: 6 },
-  europe: { center: [51, 7], zoom: 5 },
+  japan: { center: [36.5, 137], zoom: 6, filter: d => d.country === 'Japan' },
+  europe: { center: [51, 7], zoom: 5, filter: d => d.country !== 'Japan' && d.country !== 'Mexico' && d.country !== 'Qatar' },
 };
+
+function computeViewBounds(viewName) {
+  const view = VIEWS[viewName];
+  if (!view.filter) return null;
+  const year = YEARS[state.yearIndex];
+  const yearData = getYearData(year);
+  const pts = yearData.filter(view.filter);
+  if (pts.length === 0) return null;
+  const lats = pts.map(d => d.lat);
+  const lngs = pts.map(d => d.lng);
+  return L.latLngBounds(
+    [Math.min(...lats) - 1, Math.min(...lngs) - 2],
+    [Math.max(...lats) + 1, Math.max(...lngs) + 2]
+  );
+}
 
 function applyView(viewName, animate) {
   const view = VIEWS[viewName];
@@ -623,10 +638,16 @@ function applyView(viewName, animate) {
   document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = document.querySelector(`.view-btn[data-view="${viewName}"]`);
   if (activeBtn) activeBtn.classList.add('active');
-  if (mobile && view.mobileBounds) {
-    map.fitBounds(view.mobileBounds, { animate: animate !== false, duration: 1, padding: [20, 30] });
+
+  const dataBounds = (viewName !== 'world') ? computeViewBounds(viewName) : null;
+  const shouldAnimate = animate !== false;
+
+  if (dataBounds) {
+    map.fitBounds(dataBounds, { animate: shouldAnimate, duration: 1, padding: [40, 30], maxZoom: 8 });
+  } else if (mobile && view.mobileBounds) {
+    map.fitBounds(view.mobileBounds, { animate: shouldAnimate, duration: 1, padding: [20, 30] });
   } else {
-    map.flyTo(view.center, view.zoom, { duration: animate !== false ? 1 : 0 });
+    map.flyTo(view.center, view.zoom, { duration: shouldAnimate ? 1 : 0 });
   }
   if (mobile) {
     setSheetState('collapsed');
