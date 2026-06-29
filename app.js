@@ -185,13 +185,13 @@ function initMap() {
   const mobile = isMobile();
   map = L.map('map', {
     center: [40, 70],
-    zoom: 2,
+    zoom: 2.5,
     minZoom: mobile ? 1 : 2,
     maxZoom: 10,
     zoomControl: !mobile,
     worldCopyJump: true,
     tap: true,
-    zoomSnap: mobile ? 0.25 : 1,
+    zoomSnap: mobile ? 0.25 : 0.5,
   });
 
   if (mobile) {
@@ -636,7 +636,7 @@ function updateYear() {
 }
 
 const VIEWS = {
-  world: { center: [35, 70], zoom: 2, mobileBounds: [[15, -14], [58, 152]] },
+  world: { center: [40, 70], zoom: 2.5, mobileBounds: [[15, -14], [58, 152]] },
   japan: { center: [36.5, 137], zoom: 6, filter: d => d.country === 'Japan' },
   europe: { center: [51, 7], zoom: 5, filter: d => d.country !== 'Japan' && d.country !== 'Mexico' && d.country !== 'Qatar' },
 };
