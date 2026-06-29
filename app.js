@@ -41,6 +41,7 @@ const POS_PALETTES = {
 };
 
 let allData = [];
+let globalMaxTotal = 1;
 let map;
 let markerLayer;
 let pathLayer;
@@ -71,6 +72,13 @@ async function loadData() {
     appearances: +d.appearances,
   }))));
   allData = datasets.flat();
+  globalMaxTotal = 0;
+  for (const year of YEARS) {
+    const yd = allData.filter(d => d.tournament_year === year);
+    const clubs = aggregateClubs(yd);
+    const m = d3.max(clubs, c => c.total) || 0;
+    if (m > globalMaxTotal) globalMaxTotal = m;
+  }
 }
 
 function getYearData(year) {
@@ -263,11 +271,10 @@ function renderBars() {
   const clubs = zoom <= ZOOM_THRESHOLD
     ? aggregateByCountry(yearData)
     : aggregateClubs(yearData);
-  const maxTotal = d3.max(clubs, c => c.total) || 1;
   const mobile = isMobile();
 
   for (const club of clubs) {
-    const icon = createBarIcon(club, state.playerColors, maxTotal);
+    const icon = createBarIcon(club, state.playerColors, globalMaxTotal);
     const marker = L.marker([club.lat, club.lng], { icon, interactive: true });
 
     if (mobile) {
@@ -440,7 +447,7 @@ function drawPlayerPath(playerName, yearData) {
     return pts;
   }
 
-  const trailLen = totalDist * 0.12;
+  const trailLen = Math.min(totalDist * 0.3, 8);
   const layers = [
     { line: L.polyline([], { color: '#ff8fa3', weight: 3,   opacity: 0.7,  smoothFactor: 1 }).addTo(pathLayer), ratio: 0.3 },
     { line: L.polyline([], { color: '#ff6b8a', weight: 2.5, opacity: 0.55, smoothFactor: 1 }).addTo(pathLayer), ratio: 0.6 },
@@ -451,7 +458,7 @@ function drawPlayerPath(playerName, yearData) {
   const headMarker = L.marker(fullPath[0], { icon: headIcon, interactive: false }).addTo(pathLayer);
 
   let headDist = 0;
-  const speed = totalDist / 300;
+  const speed = 0.15;
 
   function animate() {
     headDist += speed;
