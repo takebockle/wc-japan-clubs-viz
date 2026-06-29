@@ -250,6 +250,7 @@ function renderBars() {
   markerLayer.clearLayers();
   if (state._pathAnimation) {
     cancelAnimationFrame(state._pathAnimation);
+    clearTimeout(state._pathAnimation);
     state._pathAnimation = null;
   }
   pathLayer.clearLayers();
@@ -374,6 +375,7 @@ function calculateArc(start, end, numPoints) {
 function drawPlayerPath(playerName, yearData) {
   if (state._pathAnimation) {
     cancelAnimationFrame(state._pathAnimation);
+    clearTimeout(state._pathAnimation);
     state._pathAnimation = null;
   }
 
@@ -453,12 +455,16 @@ function drawPlayerPath(playerName, yearData) {
   function animate() {
     headDist += speed;
     if (headDist >= totalDist) {
-      headDist = totalDist;
-      headMarker.setLatLng(pointAtDist(headDist));
+      headMarker.setLatLng(pointAtDist(totalDist));
       for (const layer of layers) {
-        const tailDist = Math.max(0, headDist - trailLen * layer.ratio);
-        layer.line.setLatLngs(slicePath(tailDist, headDist));
+        const tailDist = Math.max(0, totalDist - trailLen * layer.ratio);
+        layer.line.setLatLngs(slicePath(tailDist, totalDist));
       }
+      state._pathAnimation = setTimeout(() => {
+        headDist = 0;
+        for (const layer of layers) layer.line.setLatLngs([]);
+        state._pathAnimation = requestAnimationFrame(animate);
+      }, 1000);
       return;
     }
 
