@@ -605,7 +605,7 @@ function updateYear() {
 }
 
 const VIEWS = {
-  world: { center: [35, 70], zoom: 2, mobileBounds: [[10, -14], [62, 152]] },
+  world: { center: [35, 70], zoom: 2, mobileBounds: [[10, -24], [62, 162]] },
   japan: { center: [36.5, 137], zoom: 6 },
   europe: { center: [51, 7], zoom: 5 },
 };
