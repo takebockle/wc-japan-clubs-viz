@@ -178,15 +178,16 @@ function initMap() {
   map = L.map('map', {
     center: [40, 70],
     zoom: 2,
-    minZoom: 2,
+    minZoom: mobile ? 1 : 2,
     maxZoom: 10,
     zoomControl: !mobile,
     worldCopyJump: true,
     tap: true,
+    zoomSnap: mobile ? 0.25 : 1,
   });
 
   if (mobile) {
-    map.fitBounds(VIEWS.world.mobileBounds, { animate: false });
+    map.fitBounds(VIEWS.world.mobileBounds, { animate: false, padding: [20, 30] });
   }
 
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -611,7 +612,7 @@ function updateYear() {
 }
 
 const VIEWS = {
-  world: { center: [35, 70], zoom: 2, mobileBounds: [[10, -24], [62, 162]] },
+  world: { center: [35, 70], zoom: 2, mobileBounds: [[15, -14], [58, 152]] },
   japan: { center: [36.5, 137], zoom: 6 },
   europe: { center: [51, 7], zoom: 5 },
 };
@@ -623,7 +624,7 @@ function applyView(viewName, animate) {
   const activeBtn = document.querySelector(`.view-btn[data-view="${viewName}"]`);
   if (activeBtn) activeBtn.classList.add('active');
   if (mobile && view.mobileBounds) {
-    map.fitBounds(view.mobileBounds, { animate: animate !== false, duration: 1 });
+    map.fitBounds(view.mobileBounds, { animate: animate !== false, duration: 1, padding: [20, 30] });
   } else {
     map.flyTo(view.center, view.zoom, { duration: animate !== false ? 1 : 0 });
   }
