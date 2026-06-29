@@ -277,7 +277,6 @@ function renderBars() {
     const marker = L.marker([club.lat, club.lng], { icon, interactive: true });
 
     if (mobile) {
-      // On mobile, use click/tap for tooltip
       marker.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
         showTooltip(e, club, zoom <= ZOOM_THRESHOLD);
@@ -286,6 +285,11 @@ function renderBars() {
       marker.on('mouseover', (e) => showTooltip(e, club, zoom <= ZOOM_THRESHOLD));
       marker.on('mouseout', hideTooltip);
       marker.on('mousemove', moveTooltip);
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        const seg = e.originalEvent.target.closest('.bar-segment');
+        if (seg && seg.dataset.player) selectPlayer(seg.dataset.player);
+      });
     }
 
     marker.addTo(markerLayer);
@@ -306,8 +310,8 @@ function showTooltip(e, club, isCountryMode) {
     const color = state.playerColors[p.name] || '#666';
     const dimStyle = state.selectedPlayer && state.selectedPlayer !== p.name ? ' style="opacity:0.3"' : '';
     const clubInfo = isCountryMode && p.clubLabel ? ` — ${p.clubLabel}` : '';
-    const tapAttr = mobile ? ` data-player="${p.name}" style="cursor:pointer;${dimStyle ? 'opacity:0.3;' : ''}"` : dimStyle;
-    return `<div class="tooltip-player"${mobile ? tapAttr : dimStyle}>
+    const playerAttr = ` data-player="${p.name}" style="cursor:pointer;${dimStyle ? 'opacity:0.3;' : ''}"`;
+    return `<div class="tooltip-player"${playerAttr}>
       <span class="tooltip-player-color" style="background:${color}"></span>
       <span class="tooltip-player-name">${p.name} (${p.position})${clubInfo}</span>
       <span class="tooltip-player-apps">${p.appearances}</span>
@@ -328,13 +332,13 @@ function showTooltip(e, club, isCountryMode) {
 
   if (!isMobile()) {
     positionTooltip(e.originalEvent);
-  } else {
-    tooltip.querySelectorAll('.tooltip-player[data-player]').forEach(el => {
-      el.addEventListener('click', () => {
-        selectPlayer(el.dataset.player);
-      });
-    });
+    tooltip.style.pointerEvents = 'auto';
   }
+  tooltip.querySelectorAll('.tooltip-player[data-player]').forEach(el => {
+    el.addEventListener('click', () => {
+      selectPlayer(el.dataset.player);
+    });
+  });
 }
 
 function moveTooltip(e) {
@@ -411,8 +415,8 @@ function drawPlayerPath(playerName, yearData) {
     arcs.push({ pts, dists, totalDist: dists[dists.length - 1] });
   }
 
-  const ARC_DURATION = 1500;
-  const GAP_DURATION = 300;
+  const ARC_DURATION = 700;
+  const GAP_DURATION = 150;
   const segmentDuration = ARC_DURATION + GAP_DURATION;
   const totalDuration = arcs.length * segmentDuration;
 
