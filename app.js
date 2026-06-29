@@ -259,7 +259,6 @@ function renderBars() {
   markerLayer.clearLayers();
   if (state._pathAnimation) {
     cancelAnimationFrame(state._pathAnimation);
-    clearTimeout(state._pathAnimation);
     state._pathAnimation = null;
   }
   pathLayer.clearLayers();
@@ -383,7 +382,6 @@ function calculateArc(start, end, numPoints) {
 function drawPlayerPath(playerName, yearData) {
   if (state._pathAnimation) {
     cancelAnimationFrame(state._pathAnimation);
-    clearTimeout(state._pathAnimation);
     state._pathAnimation = null;
   }
 
@@ -401,91 +399,111 @@ function drawPlayerPath(playerName, yearData) {
 
   if (locations.length < 2) return;
 
-  const fullPath = [];
+  const arcs = [];
   for (let i = 1; i < locations.length; i++) {
-    const arcPoints = calculateArc(locations[i - 1], locations[i], 50);
-    if (i > 1) arcPoints.shift();
-    fullPath.push(...arcPoints);
+    const pts = calculateArc(locations[i - 1], locations[i], 50);
+    const dists = [0];
+    for (let j = 1; j < pts.length; j++) {
+      const dl = pts[j][0] - pts[j - 1][0];
+      const dn = pts[j][1] - pts[j - 1][1];
+      dists.push(dists[j - 1] + Math.sqrt(dl * dl + dn * dn));
+    }
+    arcs.push({ pts, dists, totalDist: dists[dists.length - 1] });
   }
 
-  const distances = [0];
-  for (let i = 1; i < fullPath.length; i++) {
-    const dlat = fullPath[i][0] - fullPath[i - 1][0];
-    const dlng = fullPath[i][1] - fullPath[i - 1][1];
-    distances.push(distances[i - 1] + Math.sqrt(dlat * dlat + dlng * dlng));
-  }
-  const totalDist = distances[distances.length - 1];
-  if (totalDist < 0.001) return;
+  const ARC_DURATION = 1500;
+  const GAP_DURATION = 300;
+  const segmentDuration = ARC_DURATION + GAP_DURATION;
+  const totalDuration = arcs.length * segmentDuration;
 
+  const fullPath = [];
+  for (let i = 0; i < arcs.length; i++) {
+    const a = arcs[i];
+    if (i > 0) a.pts.shift();
+    fullPath.push(...a.pts);
+  }
   L.polyline(fullPath, {
     color: '#e94560', weight: 1.5, opacity: 0.15, smoothFactor: 1,
   }).addTo(pathLayer);
 
-  function indexAtDist(d) {
-    for (let i = 1; i < distances.length; i++) {
-      if (distances[i] >= d) return i - 1;
+  function pointOnArc(arc, t) {
+    const d = t * arc.totalDist;
+    let idx = 0;
+    for (let i = 1; i < arc.dists.length; i++) {
+      if (arc.dists[i] >= d) { idx = i - 1; break; }
+      idx = i - 1;
     }
-    return distances.length - 2;
-  }
-
-  function pointAtDist(d) {
-    const i = indexAtDist(d);
-    const segLen = distances[i + 1] - distances[i];
-    const t = segLen > 0 ? (d - distances[i]) / segLen : 0;
+    const segLen = arc.dists[idx + 1] - arc.dists[idx];
+    const lt = segLen > 0 ? (d - arc.dists[idx]) / segLen : 0;
     return [
-      fullPath[i][0] + t * (fullPath[i + 1][0] - fullPath[i][0]),
-      fullPath[i][1] + t * (fullPath[i + 1][1] - fullPath[i][1]),
+      arc.pts[idx][0] + lt * (arc.pts[idx + 1][0] - arc.pts[idx][0]),
+      arc.pts[idx][1] + lt * (arc.pts[idx + 1][1] - arc.pts[idx][1]),
     ];
   }
 
-  function slicePath(startDist, endDist) {
-    const pts = [pointAtDist(startDist)];
-    const si = indexAtDist(startDist) + 1;
-    const ei = indexAtDist(endDist);
-    for (let i = si; i <= ei; i++) pts.push(fullPath[i]);
-    pts.push(pointAtDist(endDist));
+  function sliceArc(arc, t0, t1) {
+    const d0 = t0 * arc.totalDist;
+    const d1 = t1 * arc.totalDist;
+    const pts = [];
+    let started = false;
+    for (let i = 0; i < arc.dists.length; i++) {
+      if (!started && arc.dists[i] >= d0) {
+        pts.push(pointOnArc(arc, t0));
+        started = true;
+      }
+      if (started) {
+        if (arc.dists[i] >= d1) { pts.push(pointOnArc(arc, t1)); break; }
+        pts.push(arc.pts[i]);
+      }
+    }
+    if (pts.length === 0) pts.push(pointOnArc(arc, t0), pointOnArc(arc, t1));
     return pts;
   }
 
-  const trailLen = Math.min(totalDist * 0.3, 8);
-  const layers = [
+  function easeInOut(t) {
+    return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+  }
+
+  const trailRatio = 0.25;
+  const glowLayers = [
     { line: L.polyline([], { color: '#ff8fa3', weight: 3,   opacity: 0.7,  smoothFactor: 1 }).addTo(pathLayer), ratio: 0.3 },
     { line: L.polyline([], { color: '#ff6b8a', weight: 2.5, opacity: 0.55, smoothFactor: 1 }).addTo(pathLayer), ratio: 0.6 },
     { line: L.polyline([], { color: '#e94560', weight: 2,   opacity: 0.35, smoothFactor: 1 }).addTo(pathLayer), ratio: 1.0 },
   ];
 
   const headIcon = L.divIcon({ className: 'path-pulse', iconSize: [0, 0], iconAnchor: [0, 0] });
-  const headMarker = L.marker(fullPath[0], { icon: headIcon, interactive: false }).addTo(pathLayer);
+  const headMarker = L.marker(locations[0], { icon: headIcon, interactive: false }).addTo(pathLayer);
 
-  let headDist = 0;
-  const speed = 0.15;
+  let startTime = null;
 
-  function animate() {
-    headDist += speed;
-    if (headDist >= totalDist) {
-      headMarker.setLatLng(pointAtDist(totalDist));
-      for (const layer of layers) {
-        const tailDist = Math.max(0, totalDist - trailLen * layer.ratio);
-        layer.line.setLatLngs(slicePath(tailDist, totalDist));
+  function animate(ts) {
+    if (!startTime) startTime = ts;
+    const elapsed = (ts - startTime) % totalDuration;
+    const segIdx = Math.min(Math.floor(elapsed / segmentDuration), arcs.length - 1);
+    const segElapsed = elapsed - segIdx * segmentDuration;
+
+    const arc = arcs[segIdx];
+
+    if (segElapsed >= ARC_DURATION) {
+      headMarker.setLatLng(pointOnArc(arc, 1));
+      const trailStart = Math.max(0, 1 - trailRatio);
+      for (const gl of glowLayers) {
+        const s = 1 - (1 - trailStart) * gl.ratio;
+        gl.line.setLatLngs(sliceArc(arc, s, 1));
       }
-      state._pathAnimation = setTimeout(() => {
-        headDist = 0;
-        for (const layer of layers) layer.line.setLatLngs([]);
-        state._pathAnimation = requestAnimationFrame(animate);
-      }, 1000);
-      return;
-    }
-
-    headMarker.setLatLng(pointAtDist(headDist));
-
-    for (const layer of layers) {
-      const tailDist = Math.max(0, headDist - trailLen * layer.ratio);
-      layer.line.setLatLngs(slicePath(tailDist, headDist));
+    } else {
+      const rawT = segElapsed / ARC_DURATION;
+      const t = easeInOut(rawT);
+      headMarker.setLatLng(pointOnArc(arc, t));
+      for (const gl of glowLayers) {
+        const tailT = Math.max(0, t - trailRatio * gl.ratio);
+        gl.line.setLatLngs(sliceArc(arc, tailT, t));
+      }
     }
 
     state._pathAnimation = requestAnimationFrame(animate);
   }
-  animate();
+  state._pathAnimation = requestAnimationFrame(animate);
 }
 
 function fitToPlayerClubs(playerName, yearData) {
