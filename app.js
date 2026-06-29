@@ -418,9 +418,8 @@ function drawPlayerPath(playerName, yearData) {
 
   const fullPath = [];
   for (let i = 0; i < arcs.length; i++) {
-    const a = arcs[i];
-    if (i > 0) a.pts.shift();
-    fullPath.push(...a.pts);
+    const pts = i > 0 ? arcs[i].pts.slice(1) : arcs[i].pts;
+    fullPath.push(...pts);
   }
   L.polyline(fullPath, {
     color: '#e94560', weight: 1.5, opacity: 0.15, smoothFactor: 1,
