@@ -15,6 +15,11 @@ body {
   height: 100dvh;
 }
 
+/* ===== Top Title (mobile only, hidden on desktop) ===== */
+#top-title {
+  display: none;
+}
+
 /* ===== Sheet Handle (mobile only, hidden on desktop) ===== */
 #sheet-handle {
   display: none;
@@ -488,6 +493,29 @@ body {
     position: relative;
   }
 
+  /* Floating title bar */
+  #top-title {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1002;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    background: linear-gradient(to bottom, rgba(26, 26, 46, 0.7) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
+  #top-title span {
+    font-weight: 400;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.45);
+    margin-left: 4px;
+  }
+
   /* Map fills entire screen */
   #map {
     position: absolute;
@@ -534,31 +562,16 @@ body {
 
   /* Sheet states controlled via data attribute */
   #sidebar[data-sheet="collapsed"] {
-    transform: translateY(calc(100% - 140px));
+    transform: translateY(calc(100% - 142px));
   }
 
   #sidebar[data-sheet="expanded"] {
     transform: translateY(0);
   }
 
-  /* Header: more compact on mobile */
+  /* Hide sidebar header on mobile (title is in top bar) */
   #sidebar header {
-    padding: 8px 16px;
-    border-bottom: 1px solid #0f3460;
-  }
-
-  #sidebar h1 {
-    font-size: 15px;
-    line-height: 1.3;
-  }
-
-  #sidebar h1 br {
     display: none;
-  }
-
-  #sidebar h1 span {
-    font-size: 13px;
-    margin-left: 6px;
   }
 
   /* Year control */
@@ -626,7 +639,7 @@ body {
   /* Tooltip: fixed at bottom-center on mobile */
   #tooltip {
     position: fixed;
-    bottom: 148px;
+    bottom: 152px;
     left: 12px;
     right: 12px;
     top: auto;
@@ -635,10 +648,20 @@ body {
     pointer-events: auto;
   }
 
-  /* Move Leaflet zoom control to top-left to avoid sheet overlap */
+  .tooltip-player[data-player] {
+    cursor: pointer;
+    padding: 4px 0;
+    border-radius: 4px;
+  }
+
+  .tooltip-player[data-player]:active {
+    background: rgba(233, 69, 96, 0.2);
+  }
+
+  /* Move Leaflet zoom control above sheet */
   .leaflet-top.leaflet-right {
     top: auto;
-    bottom: 160px;
+    bottom: 156px;
   }
 
   .leaflet-control-zoom {

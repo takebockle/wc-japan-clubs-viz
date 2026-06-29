@@ -176,14 +176,18 @@ function aggregateByCountry(yearData) {
 function initMap() {
   const mobile = isMobile();
   map = L.map('map', {
-    center: mobile ? [35, 100] : [40, 70],
-    zoom: mobile ? 2 : 2,
+    center: [40, 70],
+    zoom: 2,
     minZoom: 2,
     maxZoom: 10,
     zoomControl: !mobile,
     worldCopyJump: true,
     tap: true,
   });
+
+  if (mobile) {
+    map.fitBounds(VIEWS.world.mobileBounds, { animate: false });
+  }
 
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
@@ -289,11 +293,13 @@ function renderBars() {
 
 function showTooltip(e, club, isCountryMode) {
   const tooltip = document.getElementById('tooltip');
+  const mobile = isMobile();
   const playersHtml = club.players.map(p => {
     const color = state.playerColors[p.name] || '#666';
     const dimStyle = state.selectedPlayer && state.selectedPlayer !== p.name ? ' style="opacity:0.3"' : '';
     const clubInfo = isCountryMode && p.clubLabel ? ` — ${p.clubLabel}` : '';
-    return `<div class="tooltip-player"${dimStyle}>
+    const tapAttr = mobile ? ` data-player="${p.name}" style="cursor:pointer;${dimStyle ? 'opacity:0.3;' : ''}"` : dimStyle;
+    return `<div class="tooltip-player"${mobile ? tapAttr : dimStyle}>
       <span class="tooltip-player-color" style="background:${color}"></span>
       <span class="tooltip-player-name">${p.name} (${p.position})${clubInfo}</span>
       <span class="tooltip-player-apps">${p.appearances}</span>
@@ -314,8 +320,13 @@ function showTooltip(e, club, isCountryMode) {
 
   if (!isMobile()) {
     positionTooltip(e.originalEvent);
+  } else {
+    tooltip.querySelectorAll('.tooltip-player[data-player]').forEach(el => {
+      el.addEventListener('click', () => {
+        selectPlayer(el.dataset.player);
+      });
+    });
   }
-  // On mobile, CSS positions tooltip at bottom-center, no JS positioning needed
 }
 
 function moveTooltip(e) {
@@ -441,25 +452,38 @@ function drawPlayerPath(playerName, yearData) {
 
   function animate() {
     headDist += speed;
-    if (headDist >= totalDist) headDist -= totalDist;
+    if (headDist >= totalDist) {
+      headDist = totalDist;
+      headMarker.setLatLng(pointAtDist(headDist));
+      for (const layer of layers) {
+        const tailDist = Math.max(0, headDist - trailLen * layer.ratio);
+        layer.line.setLatLngs(slicePath(tailDist, headDist));
+      }
+      return;
+    }
 
     headMarker.setLatLng(pointAtDist(headDist));
 
     for (const layer of layers) {
-      const tailDist = headDist - trailLen * layer.ratio;
-      if (tailDist >= 0) {
-        layer.line.setLatLngs(slicePath(tailDist, headDist));
-      } else {
-        const wrapped = tailDist + totalDist;
-        const pts1 = slicePath(wrapped, totalDist - 0.001);
-        const pts2 = slicePath(0, headDist);
-        layer.line.setLatLngs(pts1.concat(pts2));
-      }
+      const tailDist = Math.max(0, headDist - trailLen * layer.ratio);
+      layer.line.setLatLngs(slicePath(tailDist, headDist));
     }
 
     state._pathAnimation = requestAnimationFrame(animate);
   }
   animate();
+}
+
+function fitToPlayerClubs(playerName, yearData) {
+  const records = yearData.filter(d => d.player_name === playerName);
+  if (records.length === 0) return;
+  const lats = records.map(d => d.lat);
+  const lngs = records.map(d => d.lng);
+  const bounds = L.latLngBounds(
+    [Math.min(...lats) - 2, Math.min(...lngs) - 5],
+    [Math.max(...lats) + 2, Math.max(...lngs) + 5]
+  );
+  map.fitBounds(bounds, { duration: 1, maxZoom: 8, padding: [30, 30] });
 }
 
 function renderCareerPanel(playerName, yearData) {
@@ -500,6 +524,21 @@ function renderCareerPanel(playerName, yearData) {
   panel.classList.add('visible');
 }
 
+function selectPlayer(name) {
+  state.selectedPlayer = state.selectedPlayer === name ? null : name;
+  renderBars();
+  renderSidebar();
+  if (state.selectedPlayer) {
+    const year = YEARS[state.yearIndex];
+    const yearData = getYearData(year);
+    fitToPlayerClubs(state.selectedPlayer, yearData);
+    if (isMobile()) {
+      setSheetState('collapsed');
+      hideTooltip();
+    }
+  }
+}
+
 function renderSidebar() {
   const year = YEARS[state.yearIndex];
   const yearData = getYearData(year);
@@ -528,10 +567,7 @@ function renderSidebar() {
 
   container.querySelectorAll('.player-item').forEach(el => {
     el.addEventListener('click', () => {
-      const name = el.dataset.player;
-      state.selectedPlayer = state.selectedPlayer === name ? null : name;
-      renderBars();
-      renderSidebar();
+      selectPlayer(el.dataset.player);
     });
   });
 }
@@ -569,22 +605,31 @@ function updateYear() {
 }
 
 const VIEWS = {
-  world: { center: [35, 70], zoom: 2 },
+  world: { center: [35, 70], zoom: 2, mobileBounds: [[10, -14], [62, 152]] },
   japan: { center: [36.5, 137], zoom: 6 },
   europe: { center: [51, 7], zoom: 5 },
 };
 
+function applyView(viewName, animate) {
+  const view = VIEWS[viewName];
+  const mobile = isMobile();
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.querySelector(`.view-btn[data-view="${viewName}"]`);
+  if (activeBtn) activeBtn.classList.add('active');
+  if (mobile && view.mobileBounds) {
+    map.fitBounds(view.mobileBounds, { animate: animate !== false, duration: 1 });
+  } else {
+    map.flyTo(view.center, view.zoom, { duration: animate !== false ? 1 : 0 });
+  }
+  if (mobile) {
+    setSheetState('collapsed');
+  }
+}
+
 function initViewButtons() {
   document.querySelectorAll('.view-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const view = VIEWS[btn.dataset.view];
-      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      map.flyTo(view.center, view.zoom, { duration: 1 });
-      // On mobile, collapse the sheet when switching views
-      if (isMobile()) {
-        setSheetState('collapsed');
-      }
+      applyView(btn.dataset.view);
     });
   });
 }
@@ -672,6 +717,7 @@ async function init() {
   initYearControl();
   initViewButtons();
   initBottomSheet();
+  applyView('world', false);
   renderBars();
   renderSidebar();
 
